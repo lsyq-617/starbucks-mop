@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>星巴克点单小程序</title>
+<script src="https://modao.cc/agent-py/static/source/js/tailwindcss.js"></script>
+<script src="https://modao.cc/agent-py/static/source/js/iconify-icon.min.js"></script>
+<script src="https://modao.cc/agent-py/static/source/js/echarts.min.js"></script>
+<style>
+        body {
+            background-color: #f3f4f6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        #app {
+            width: 375px;
+            height: 812px;
+            background-color: #F7F7F7;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border-radius: 40px;
+            border: 8px solid #333;
+        }
+        .page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            overflow-y: auto;
+            padding-bottom: 80px;
+        }
+        .page.active {
+            display: flex;
+        }
+        .no-tabbar {
+            padding-bottom: 0;
+        }
+        .sb-green { color: #00754A; }
+        .bg-sb-green { background-color: #00754A; }
+        .sb-gold { color: #D4A574; }
+        .bg-sb-gold { background-color: #D4A574; }
+        .custom-dashed {
+            border: 2px dashed #D4A574;
+        }
+        .page::-webkit-scrollbar {
+            display: none;
+        }
+        .tab-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid #eee;
+            z-index: 100;
+        }
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 10px;
+            color: #999;
+            cursor: pointer;
+        }
+        .tab-item.active {
+            color: #00754A;
+        }
+        .highlight-term {
+            background-color: #FFF2CC;
+            font-weight: bold;
+            padding: 0 4px;
+            border-radius: 2px;
+        }
+        .step-line {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            height: 2px;
+            background: #eee;
+            z-index: 1;
+        }
+        .step-line-active {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            height: 2px;
+            background: #00754A;
+            z-index: 2;
+        }
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-card {
+            background: white;
+            border-radius: 20px;
+            width: 85%;
+            max-height: 80%;
+            overflow-y: auto;
+            padding: 24px;
+            animation: modalIn 0.25s ease-out;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        body.modal-open .page {
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+<!-- ====== 1. 隐私权政策提示页（首次启动引导页，非硬性门禁） ====== -->
+<div class="page active no-tabbar bg-white flex flex-col" id="page-privacy-policy">
+<div class="flex-1 overflow-y-auto px-8 pt-12 pb-6">
+<!-- Close button -->
+<div class="flex justify-end mb-2">
+<iconify-icon class="text-2xl text-gray-400 cursor-pointer" icon="mdi:close" onclick="skipPrivacy()"></iconify-icon>
+</div>
+<!-- Logo -->
+<div class="flex justify-center mb-6">
+<img alt="Starbucks Logo" class="w-20 h-20" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/bbef1348fe6942cb86daff64a5c64f90.jpg"/>
+</div>
+<!-- Title -->
+<h2 class="text-xl font-bold mb-5 text-center text-black">隐私权政策提示</h2>
+<!-- Welcome text -->
+<p class="text-sm text-gray-600 leading-relaxed mb-5 text-left">欢迎使用星巴克点餐服务。为了更好地保障您的合法权益，请您在继续使用前仔细阅读我们的《隐私权政策》。</p>
+<!-- Core terms card -->
+<div class="border border-gray-200 rounded-xl p-5 mb-6 bg-white">
+<h3 class="font-bold text-sm mb-3 text-black">核心条款说明：</h3>
+<ul class="space-y-3 text-sm text-gray-700">
+<li class="flex items-start gap-2">
+<span class="text-sb-green font-bold shrink-0 mt-0.5">•</span>
+<span>当您打开小程序时，我们会收集您的 <span class="highlight-term">Open ID</span>。</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="text-sb-green font-bold shrink-0 mt-0.5">•</span>
+<span>为了完成点单，我们会收集您的 <span class="highlight-term">订单信息</span>（商品、定制选项、数量）。</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="text-sb-green font-bold shrink-0 mt-0.5">•</span>
+<span>如需要外送服务，我们会收集您的 <span class="highlight-term">收货地址、联系方式</span>。</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="text-sb-green font-bold shrink-0 mt-0.5">•</span>
+<span>为了提供配送、支付等必要服务，我们会与 <span class="highlight-term">顺丰速运、微信支付</span> 等合作伙伴共享必要信息。</span>
+</li>
+</ul>
+</div>
+<!-- Policy links -->
+<p class="text-xs text-gray-400 mb-6 text-left">
+点此查看
+<span class="sb-green underline cursor-pointer font-bold">《隐私权政策》</span>
+<span class="text-gray-300 mx-1">|</span>
+<span class="sb-green underline cursor-pointer font-bold">《个人信息第三方共享清单》</span>
+</p>
+<!-- Checkbox area -->
+<div class="flex items-start gap-3 mb-6" onclick="togglePrivacyCheck()">
+<div class="w-5 h-5 border-2 border-gray-300 rounded flex items-center justify-center shrink-0 mt-0.5 cursor-pointer transition-all duration-150" id="privacy-checkbox">
+<iconify-icon class="text-white text-sm hidden" icon="mdi:check" id="privacy-check-icon"></iconify-icon>
+</div>
+<p class="text-xs text-gray-500 leading-relaxed cursor-pointer" id="privacy-check-label">如您同意以上事项，请勾选左侧小方块。您同意我们依据《隐私权政策》处理您的个人信息。</p>
+</div>
+<!-- Agree & Continue button -->
+<button class="w-full bg-[#00754A] text-white py-4 rounded-full font-bold text-base mb-4 shadow-lg active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed" disabled="" id="btn-agree-continue" onclick="consentPrivacy()">同意并继续</button>
+<!-- Guest mode button -->
+<button class="w-full bg-white text-gray-700 py-4 rounded-full font-bold text-base active:scale-95 transition" onclick="enterGuestMode()" style="border: 2px dashed #D4A574;">以游客模式浏览</button>
+</div>
+<!-- Bottom hint -->
+<p class="text-center text-xs text-gray-400 pb-6 px-8">如您暂时不同意以上事项，您可以在"游客模式"下浏览，但无法下单。</p>
+</div>
+<!-- ====== 2. 登录页 ====== -->
+<div class="page no-tabbar bg-white" id="page-login">
+<div class="p-6">
+<div class="flex justify-between items-center mb-12">
+<iconify-icon class="text-2xl text-gray-400 cursor-pointer" icon="mdi:close" onclick="switchPage('page-home')"></iconify-icon>
+</div>
+<div class="text-center mb-10">
+<p class="sb-gold font-bold tracking-widest text-sm mb-2">STARBUCKS REWARDS</p>
+<h1 class="text-2xl font-bold">星享俱乐部</h1>
+<p class="text-gray-400 mt-2">欢迎来到星享俱乐部</p>
+</div>
+<div class="space-y-4 mb-12">
+<button class="w-full bg-[#07C160] text-white py-4 rounded-full font-bold flex items-center justify-center gap-2" onclick="loginWithWechat()">
+<iconify-icon class="text-2xl" icon="mdi:wechat"></iconify-icon>
+                    微信一键登录
+                </button>
+<button class="w-full bg-white border border-gray-300 text-gray-700 py-4 rounded-full font-bold" onclick="loginWithPhone()">手机号注册</button>
+</div>
+<div class="bg-gray-50 p-6 rounded-2xl mb-8">
+<h3 class="font-bold text-sm mb-4">星巴克微信小程序登录隐私权益</h3>
+<ul class="text-xs text-gray-500 space-y-3">
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 bg-gray-300 rounded-full mt-1.5 shrink-0"></span>
+<span>当您打开小程序时，我们会收集您的 Open ID。授权后可同步您的微信头像、昵称并验证手机号登录。</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 bg-gray-300 rounded-full mt-1.5 shrink-0"></span>
+<span>注册账户时，需填写手机号和昵称。注册后可选择完善生日、性别和邮箱信息。</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 bg-gray-300 rounded-full mt-1.5 shrink-0"></span>
+<span>信息将用于提供积星、兑换奖励、优惠推荐等服务。您有权随时撤回或注销。</span>
+</li>
+</ul>
+</div>
+<div class="flex items-center gap-2 mb-8">
+<input class="w-4 h-4 accent-[#00754A]" id="login-agree" type="checkbox"/>
+<label class="text-xs text-gray-400 underline" for="login-agree">我已阅读并同意以上隐私权益说明</label>
+</div>
+<div class="text-center">
+<span class="text-sm sb-green font-bold cursor-pointer" onclick="switchPage('page-store-select')">更多门店</span>
+</div>
+</div>
+</div>
+<!-- ====== 3. 首页 ====== -->
+<div class="page bg-[#F7F7F7]" id="page-home">
+<!-- Header -->
+<div class="bg-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+<div class="flex items-center gap-1 cursor-pointer" onclick="switchPage('page-store-select')">
+<iconify-icon class="text-xl sb-green" icon="mdi:map-marker"></iconify-icon>
+<span class="font-bold text-sm">北京师大二附中店</span>
+<iconify-icon class="text-gray-400" icon="mdi:chevron-right"></iconify-icon>
+</div>
+<div class="flex gap-4">
+<iconify-icon class="text-2xl text-gray-600" icon="mdi:bell-outline"></iconify-icon>
+<iconify-icon class="text-2xl text-gray-600" icon="mdi:qrcode-scan"></iconify-icon>
+</div>
+</div>
+<!-- Hero Cards -->
+<div class="px-4 py-4 space-y-4">
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-white p-4 rounded-2xl shadow-sm flex flex-col items-center justify-center h-40 active:scale-95 transition cursor-pointer" onclick="handleOrderAction()">
+<img alt="啡快" class="w-20 h-20 mb-2" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/7c4122d25d984a9e9a5adf4c9b013906.jpg"/>
+<span class="font-bold">啡快™</span>
+<span class="text-[10px] text-gray-400">在线点 · 到店取</span>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm flex flex-col items-center justify-center h-40 active:scale-95 transition cursor-pointer" onclick="handleDeliveryAction()">
+<img alt="专星送" class="w-20 h-20 mb-2" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/02fb22b701ab4c0d8cc08f1ed2586eb6.jpg"/>
+<span class="font-bold">专星送™</span>
+<span class="text-[10px] text-gray-400">外卖配送</span>
+</div>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:scale-95 transition cursor-pointer">
+<div class="flex items-center gap-3">
+<img alt="用星说" class="w-12 h-12" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/bd2743d26b7641ab9229afd28fe39e90.jpg"/>
+<div>
+<p class="font-bold">用星说</p>
+<p class="text-xs text-gray-400">社交礼品卡</p>
+</div>
+</div>
+<iconify-icon class="text-gray-300 text-xl" icon="mdi:chevron-right"></iconify-icon>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:scale-95 transition cursor-pointer">
+<div class="flex items-center gap-3">
+<img alt="咖啡生活馆" class="w-12 h-12" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/3038cbb9d3e447af8853a77144c71cae.jpg"/>
+<div>
+<p class="font-bold">咖啡生活馆</p>
+<p class="text-xs text-gray-400">周边商城</p>
+</div>
+</div>
+<iconify-icon class="text-gray-300 text-xl" icon="mdi:chevron-right"></iconify-icon>
+</div>
+</div>
+<!-- Seasonal Promo -->
+<div class="px-4 pb-6">
+<div class="bg-white rounded-2xl overflow-hidden shadow-sm">
+<img alt="Spring Promo" class="w-full h-48 object-cover" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/94a9f385e4ba439a898ea0d50e38efb6.jpg"/>
+<div class="p-4">
+<div class="flex justify-between items-center">
+<div>
+<p class="sb-green text-xs font-bold mb-1">季节限定</p>
+<h3 class="font-bold text-lg">春日樱花拿铁</h3>
+<p class="text-xs text-gray-400">每一口都是浪漫春意</p>
+</div>
+<button class="bg-sb-green text-white px-4 py-2 rounded-full text-sm font-bold" onclick="handleOrderAction()">去尝鲜</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Links -->
+<div class="px-6 grid grid-cols-4 gap-4 mb-8">
+<div class="flex flex-col items-center gap-1">
+<div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+<iconify-icon class="text-xl text-gray-600" icon="mdi:qrcode-scan"></iconify-icon>
+</div>
+<span class="text-[10px] text-gray-600">扫一扫</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+<iconify-icon class="text-xl text-gray-600" icon="mdi:card-account-details-outline"></iconify-icon>
+</div>
+<span class="text-[10px] text-gray-600">星礼卡</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+<iconify-icon class="text-xl text-gray-600" icon="mdi:account-group-outline"></iconify-icon>
+</div>
+<span class="text-[10px] text-gray-600">拼单</span>
+</div>
+<div class="flex flex-col items-center gap-1 cursor-pointer" onclick="switchPage('page-order-history')">
+<div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+<iconify-icon class="text-xl text-gray-600" icon="mdi:history"></iconify-icon>
+</div>
+<span class="text-[10px] text-gray-600">历史订单</span>
+</div>
+</div>
+</div>
+<!-- ====== 4. 选择门店页 ====== -->
+<div class="page bg-white" id="page-store-select">
+<div class="px-6 py-4 flex items-center gap-4 sticky top-0 bg-white z-10 border-b">
+<iconify-icon class="text-2xl cursor-pointer" icon="mdi:arrow-left" onclick="switchPage('page-home')"></iconify-icon>
+<div class="flex-1 bg-gray-100 rounded-full px-4 py-2 flex items-center gap-2">
+<iconify-icon class="text-gray-400" icon="mdi:magnify"></iconify-icon>
+<input class="bg-transparent text-sm w-full outline-none" placeholder="输入地址或门店名" type="text"/>
+</div>
+</div>
+<div class="px-6 py-4">
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-1">
+<span class="font-bold">北京市</span>
+<iconify-icon icon="mdi:chevron-down"></iconify-icon>
+</div>
+</div>
+<div class="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+<span class="px-4 py-1 bg-sb-green text-white rounded-full text-xs shrink-0">附近</span>
+<span class="px-4 py-1 bg-gray-100 text-gray-600 rounded-full text-xs shrink-0">去过</span>
+<span class="px-4 py-1 bg-gray-100 text-gray-600 rounded-full text-xs shrink-0">啡快服务</span>
+<span class="px-4 py-1 bg-gray-100 text-gray-600 rounded-full text-xs shrink-0">专星送</span>
+<span class="px-4 py-1 bg-gray-100 text-gray-600 rounded-full text-xs shrink-0">臻选店</span>
+</div>
+<div class="space-y-6 mt-4">
+<div class="flex justify-between items-start border-b pb-6">
+<div class="flex-1">
+<h4 class="font-bold mb-1">北京师大二附中店</h4>
+<p class="text-xs text-gray-400 mb-2">北京市西城区新街口外大街12号</p>
+<div class="flex items-center gap-2">
+<span class="text-[10px] border border-green-200 text-green-600 px-1 rounded">营业中</span>
+<span class="text-[10px] text-gray-400">07:00-22:00</span>
+</div>
+</div>
+<div class="text-right">
+<p class="text-xs font-bold mb-3">1.2km</p>
+<button class="bg-sb-green text-white px-4 py-1.5 rounded-full text-xs font-bold" onclick="handleOrderAction()">选此门店</button>
+</div>
+</div>
+<div class="flex justify-between items-start border-b pb-6 opacity-60">
+<div class="flex-1">
+<h4 class="font-bold mb-1">富中通和大厦店</h4>
+<p class="text-xs text-gray-400 mb-2">北京市海淀区学院路35号</p>
+<div class="flex items-center gap-2">
+<span class="text-[10px] border border-gray-200 text-gray-400 px-1 rounded">休息中</span>
+<span class="text-[10px] text-gray-400">08:00-21:00</span>
+</div>
+</div>
+<div class="text-right">
+<p class="text-xs font-bold mb-3">2.5km</p>
+<button class="bg-gray-200 text-gray-500 px-4 py-1.5 rounded-full text-xs font-bold cursor-not-allowed">选此门店</button>
+</div>
+</div>
+<div class="flex justify-between items-start border-b pb-6">
+<div class="flex-1">
+<h4 class="font-bold mb-1">学院路臻选店</h4>
+<p class="text-xs text-gray-400 mb-2">北京市海淀区学院路甲5号</p>
+<div class="flex items-center gap-2">
+<span class="text-[10px] bg-sb-gold text-white px-1 rounded">臻选店</span>
+<span class="text-[10px] border border-green-200 text-green-600 px-1 rounded">营业中</span>
+</div>
+</div>
+<div class="text-right">
+<p class="text-xs font-bold mb-3">4.2km</p>
+<button class="bg-sb-green text-white px-4 py-1.5 rounded-full text-xs font-bold" onclick="handleOrderAction()">选此门店</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- ====== 5. 菜单点餐页 ====== -->
+<div class="page bg-white" id="page-menu">
+<div class="px-4 py-3 bg-white border-b flex items-center justify-between sticky top-0 z-10">
+<div class="flex-1">
+<div class="flex items-center gap-1">
+<span class="font-bold text-sm">北京师大二附中店</span>
+<iconify-icon class="text-gray-400" icon="mdi:chevron-down"></iconify-icon>
+</div>
+<div class="flex gap-4 mt-1">
+<div class="flex items-center gap-1 text-[10px] sb-green font-bold">
+<span class="w-1.5 h-1.5 bg-sb-green rounded-full"></span>
+                        自取
+                    </div>
+<div class="flex items-center gap-1 text-[10px] text-gray-400">
+<span class="w-1.5 h-1.5 bg-gray-200 rounded-full"></span>
+                        外送
+                    </div>
+</div>
+</div>
+<div class="flex gap-4">
+<iconify-icon class="text-2xl text-gray-600" icon="mdi:magnify"></iconify-icon>
+<iconify-icon class="text-2xl text-gray-600" icon="mdi:heart-outline"></iconify-icon>
+</div>
+</div>
+<div class="flex flex-1 overflow-hidden">
+<div class="w-24 bg-gray-50 overflow-y-auto">
+<div class="py-4 px-2 space-y-8">
+<div class="flex flex-col items-center gap-1 sb-green font-bold">
+<img alt="推荐" class="w-8 h-8 opacity-50" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/d2c5aa7c90f14d508a92bfbee7077558.jpg"/>
+<span class="text-[11px] text-center">推荐/新品</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-gray-500">
+<span class="text-[11px] text-center">拿铁/玛奇朵</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-gray-500">
+<span class="text-[11px] text-center">星冰乐</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-gray-500">
+<span class="text-[11px] text-center">冷萃咖啡</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-gray-500">
+<span class="text-[11px] text-center">烘焙食品</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-gray-500">
+<span class="text-[11px] text-center">咖啡周边</span>
+</div>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto px-4 py-4">
+<h3 class="font-bold text-sm mb-4">本季推荐</h3>
+<div class="space-y-6">
+<div class="flex gap-3 active:bg-gray-50 p-1 rounded-lg cursor-pointer" onclick="openProductDetail('樱花拿铁', 38, '融合樱花风味与经典浓缩')">
+<img alt="樱花拿铁" class="w-20 h-20 rounded-lg object-cover" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/9471773b49b64570999bbc57c7197b5e.jpg"/>
+<div class="flex-1">
+<h4 class="font-bold text-sm">樱花拿铁</h4>
+<p class="text-[10px] text-gray-400 line-clamp-2 mt-1">融合樱花风味与经典浓缩，每一口都是浪漫春意</p>
+<div class="flex justify-between items-center mt-2">
+<span class="font-bold text-sm">¥ 38.00 起</span>
+<iconify-icon class="text-2xl sb-green" icon="mdi:plus-circle"></iconify-icon>
+</div>
+</div>
+</div>
+<div class="flex gap-3 active:bg-gray-50 p-1 rounded-lg cursor-pointer" onclick="openProductDetail('燕麦焦糖玛奇朵', 41, '植物奶风味，香甜浓郁')">
+<img alt="燕麦焦糖玛奇朵" class="w-20 h-20 rounded-lg object-cover" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/e78c63a63a9d41859ed62c3af1788214.jpg"/>
+<div class="flex-1">
+<h4 class="font-bold text-sm">燕麦焦糖玛奇朵</h4>
+<p class="text-[10px] text-gray-400 line-clamp-2 mt-1">植物奶风味，香甜浓郁，经典风味的健康新选择</p>
+<div class="flex justify-between items-center mt-2">
+<span class="font-bold text-sm">¥ 41.00 起</span>
+<iconify-icon class="text-2xl sb-green" icon="mdi:plus-circle"></iconify-icon>
+</div>
+</div>
+</div>
+<h3 class="font-bold text-sm mb-4 mt-8">经典拿铁</h3>
+<div class="flex gap-3 active:bg-gray-50 p-1 rounded-lg cursor-pointer" onclick="openProductDetail('经典拿铁', 30, '浓缩咖啡与蒸奶的完美比例')">
+<img alt="经典拿铁" class="w-20 h-20 rounded-lg object-cover" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/79440d5e10da433c9d65f522e50c0a58.jpg"/>
+<div class="flex-1">
+<h4 class="font-bold text-sm">经典拿铁</h4>
+<p class="text-[10px] text-gray-400 line-clamp-2 mt-1">浓缩咖啡与蒸奶的完美比例，口感醇厚丝滑</p>
+<div class="flex justify-between items-center mt-2">
+<span class="font-bold text-sm">¥ 30.00 起</span>
+<iconify-icon class="text-2xl sb-green" icon="mdi:plus-circle"></iconify-icon>
+</div>
+</div>
+</div>
+<div class="flex gap-3 active:bg-gray-50 p-1 rounded-lg cursor-pointer" onclick="openProductDetail('冰摇红莓黑加仑', 32, '清爽果茶，沁人心脾')">
+<img alt="冰摇红莓黑加仑" class="w-20 h-20 rounded-lg object-cover" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/940695cc5d66497999d431b11bbf5ed2.jpg"/>
+<div class="flex-1">
+<h4 class="font-bold text-sm">冰摇红莓黑加仑</h4>
+<p class="text-[10px] text-gray-400 line-clamp-2 mt-1">清爽果茶，沁人心脾，酸甜适口，夏日首选</p>
+<div class="flex justify-between items-center mt-2">
+<span class="font-bold text-sm">¥ 32.00 起</span>
+<iconify-icon class="text-2xl sb-green" icon="mdi:plus-circle"></iconify-icon>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="absolute bottom-24 left-4 right-4 bg-black/80 backdrop-blur-md rounded-full h-14 flex items-center px-6 justify-between text-white hidden z-50" id="mini-cart">
+<div class="flex items-center gap-3 cursor-pointer" onclick="switchPage('page-cart')">
+<div class="relative">
+<iconify-icon class="text-3xl" icon="mdi:shopping"></iconify-icon>
+<span class="absolute -top-1 -right-1 bg-sb-green text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center" id="cart-count">1</span>
+</div>
+<div>
+<p class="text-sm font-bold">¥ <span id="cart-total">38.00</span></p>
+<p class="text-[10px] text-gray-400">预计10分钟后可取</p>
+</div>
+</div>
+<button class="bg-sb-green px-6 py-2 rounded-full text-sm font-bold active:scale-95" onclick="switchPage('page-cart')">去结算</button>
+</div>
+</div>
+<!-- ====== 6. 商品详情页 ====== -->
+<div class="page no-tabbar bg-white" id="page-product-detail">
+<div class="relative h-64">
+<img alt="Product Large" class="w-full h-full object-cover" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/cafe85741b274197bf3704c2c1f863ce.jpg"/>
+<div class="absolute top-6 left-6 w-8 h-8 bg-black/20 rounded-full flex items-center justify-center cursor-pointer" onclick="switchPage('page-menu')">
+<iconify-icon class="text-white" icon="mdi:close"></iconify-icon>
+</div>
+</div>
+<div class="px-6 py-6 flex-1">
+<div class="flex justify-between items-start mb-2">
+<h2 class="text-xl font-bold" id="detail-name">樱花拿铁</h2>
+<span class="text-xl font-bold" id="detail-price">¥ 38.00</span>
+</div>
+<p class="text-xs text-gray-400 mb-8" id="detail-desc">融合樱花风味与经典浓缩，带给您春天的味道。</p>
+<div class="space-y-8">
+<div>
+<h4 class="text-sm font-bold mb-4">杯型选择</h4>
+<div class="grid grid-cols-3 gap-3">
+<div class="border rounded-xl p-3 flex flex-col items-center gap-1 active:border-sb-green active:bg-green-50 active:text-sb-green transition cursor-pointer" onclick="selectOption(this, 'size')">
+<iconify-icon class="text-xl" icon="mdi:coffee-outline"></iconify-icon>
+<span class="text-[10px] font-bold">中杯 Tall</span>
+<span class="text-[8px]">355ml</span>
+</div>
+<div class="border-2 border-sb-green bg-green-50 text-sb-green rounded-xl p-3 flex flex-col items-center gap-1 cursor-pointer" onclick="selectOption(this, 'size')">
+<iconify-icon class="text-xl" icon="mdi:coffee"></iconify-icon>
+<span class="text-[10px] font-bold">大杯 Grande</span>
+<span class="text-[8px]">473ml</span>
+</div>
+<div class="border rounded-xl p-3 flex flex-col items-center gap-1 active:border-sb-green active:bg-green-50 active:text-sb-green transition cursor-pointer" onclick="selectOption(this, 'size')">
+<iconify-icon class="text-xl" icon="mdi:coffee-to-go"></iconify-icon>
+<span class="text-[10px] font-bold">超大杯 Venti</span>
+<span class="text-[8px]">592ml</span>
+</div>
+</div>
+</div>
+<div>
+<h4 class="text-sm font-bold mb-4">温度</h4>
+<div class="flex gap-3">
+<span class="px-6 py-2 border rounded-full text-xs font-bold active:bg-green-50 active:border-sb-green active:text-sb-green cursor-pointer" onclick="selectOption(this, 'temp')">热饮</span>
+<span class="px-6 py-2 border rounded-full text-xs font-bold active:bg-green-50 active:border-sb-green active:text-sb-green cursor-pointer" onclick="selectOption(this, 'temp')">冰饮</span>
+</div>
+</div>
+<div>
+<h4 class="text-sm font-bold mb-4">甜度</h4>
+<div class="flex flex-wrap gap-3">
+<span class="px-4 py-2 border rounded-full text-[10px] font-bold active:bg-green-50 active:border-sb-green active:text-sb-green cursor-pointer" onclick="selectOption(this, 'sweet')">标准糖</span>
+<span class="px-4 py-2 border rounded-full text-[10px] font-bold active:bg-green-50 active:border-sb-green active:text-sb-green cursor-pointer" onclick="selectOption(this, 'sweet')">少糖</span>
+<span class="px-4 py-2 border rounded-full text-[10px] font-bold active:bg-green-50 active:border-sb-green active:text-sb-green cursor-pointer" onclick="selectOption(this, 'sweet')">半糖</span>
+<span class="px-4 py-2 border rounded-full text-[10px] font-bold active:bg-green-50 active:border-sb-green active:text-sb-green cursor-pointer" onclick="selectOption(this, 'sweet')">无糖</span>
+</div>
+</div>
+<div>
+<h4 class="text-sm font-bold mb-4">加料 (可选)</h4>
+<div class="space-y-4">
+<div class="flex justify-between items-center">
+<div class="text-xs">
+<p class="font-bold">浓缩咖啡</p>
+<p class="text-gray-400">+¥ 4.00</p>
+</div>
+<div class="flex items-center gap-4">
+<iconify-icon class="text-2xl text-gray-300" icon="mdi:minus-circle-outline"></iconify-icon>
+<span class="font-bold text-sm">0</span>
+<iconify-icon class="text-2xl sb-green" icon="mdi:plus-circle"></iconify-icon>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<div class="text-xs">
+<p class="font-bold">换燕麦奶</p>
+<p class="text-gray-400">+¥ 3.00</p>
+</div>
+<div class="flex items-center gap-4">
+<iconify-icon class="text-2xl text-gray-300" icon="mdi:minus-circle-outline"></iconify-icon>
+<span class="font-bold text-sm">0</span>
+<iconify-icon class="text-2xl sb-green" icon="mdi:plus-circle"></iconify-icon>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="p-6 border-t flex items-center justify-between sticky bottom-0 bg-white">
+<div class="flex items-center gap-4">
+<iconify-icon class="text-3xl text-gray-300" icon="mdi:minus-circle-outline"></iconify-icon>
+<span class="font-bold text-lg">1</span>
+<iconify-icon class="text-3xl sb-green" icon="mdi:plus-circle"></iconify-icon>
+</div>
+<button class="bg-sb-green text-white px-12 py-3 rounded-full font-bold shadow-lg active:scale-95 transition" onclick="addToCart()">加入购物袋</button>
+</div>
+</div>
+<!-- ====== 7. 购物袋页 ====== -->
+<div class="page bg-[#F7F7F7]" id="page-cart">
+<div class="px-6 py-4 bg-white flex justify-between items-center sticky top-0 z-10 border-b">
+<div class="flex items-center gap-3">
+<iconify-icon class="text-2xl cursor-pointer" icon="mdi:arrow-left" onclick="switchPage('page-menu')"></iconify-icon>
+<h2 class="font-bold">购物袋</h2>
+</div>
+<span class="text-xs text-gray-400 cursor-pointer" onclick="clearCart()">清空</span>
+</div>
+<div class="p-4 space-y-4">
+<div class="bg-white p-4 rounded-2xl shadow-sm">
+<div class="flex justify-between items-center mb-4 pb-4 border-b">
+<div>
+<p class="font-bold text-sm">北京师大二附中店</p>
+<p class="text-[10px] text-gray-400">自取 · 预计10分钟后可取</p>
+</div>
+</div>
+<div class="space-y-6">
+<div class="flex gap-3">
+<img alt="Product" class="w-16 h-16 rounded-lg object-cover" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/cab70efef28349f09031b484ea8bc575.jpg"/>
+<div class="flex-1">
+<div class="flex justify-between">
+<h4 class="font-bold text-sm">樱花拿铁</h4>
+<span class="font-bold text-sm">¥ 38.00</span>
+</div>
+<p class="text-[10px] text-gray-400 mt-1">大杯(Grande) / 热 / 标准糖</p>
+<div class="flex justify-end mt-2">
+<div class="flex items-center gap-3">
+<iconify-icon class="text-xl text-gray-300" icon="mdi:minus-circle-outline"></iconify-icon>
+<span class="font-bold text-sm">1</span>
+<iconify-icon class="text-xl sb-green" icon="mdi:plus-circle"></iconify-icon>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm">
+<h4 class="font-bold text-sm mb-4">猜你喜欢</h4>
+<div class="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+<div class="w-32 shrink-0">
+<img alt="曲奇" class="w-full h-24 rounded-lg object-cover mb-2" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/6de594797caa4ee1847076c527860582.jpg"/>
+<p class="text-xs font-bold">巧克力曲奇</p>
+<p class="text-[10px] text-gray-400 mb-2">¥ 18.00</p>
+<button class="w-full border border-sb-green text-sb-green rounded-full py-1 text-[10px] font-bold">添加</button>
+</div>
+<div class="w-32 shrink-0">
+<img alt="蛋糕" class="w-full h-24 rounded-lg object-cover mb-2" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/838eb9c4a56844079966e95ead8317a4.jpg"/>
+<p class="text-xs font-bold">纽约芝士蛋糕</p>
+<p class="text-[10px] text-gray-400 mb-2">¥ 29.00</p>
+<button class="w-full border border-sb-green text-sb-green rounded-full py-1 text-[10px] font-bold">添加</button>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-auto p-6 bg-white border-t sticky bottom-0 flex items-center justify-between">
+<div>
+<p class="text-xs text-gray-400">合计</p>
+<p class="text-xl font-bold sb-green">¥ 38.00</p>
+</div>
+<button class="bg-sb-green text-white px-12 py-3 rounded-full font-bold active:scale-95" onclick="switchPage('page-checkout')">去结算</button>
+</div>
+</div>
+<!-- ====== 8. 确认订单页 ====== -->
+<div class="page bg-[#F7F7F7]" id="page-checkout">
+<div class="px-6 py-4 bg-white flex items-center gap-3 sticky top-0 z-10 border-b">
+<iconify-icon class="text-2xl cursor-pointer" icon="mdi:arrow-left" onclick="switchPage('page-cart')"></iconify-icon>
+<h2 class="font-bold">确认订单</h2>
+</div>
+<div class="p-4 space-y-4 pb-32">
+<div class="bg-white p-4 rounded-2xl shadow-sm">
+<div class="flex bg-gray-100 rounded-full p-1 mb-4">
+<button class="flex-1 py-2 rounded-full text-xs font-bold bg-white shadow-sm">到店自取</button>
+<button class="flex-1 py-2 rounded-full text-xs font-bold text-gray-400" onclick="handleCheckoutDelivery()">专星送配送</button>
+</div>
+<div>
+<p class="font-bold text-sm">北京师大二附中店</p>
+<p class="text-[10px] text-gray-400 mt-1">北京市西城区新街口外大街12号</p>
+</div>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm">
+<div class="flex justify-between items-center mb-4">
+<div class="flex items-center gap-2">
+<iconify-icon class="sb-gold" icon="mdi:star"></iconify-icon>
+<span class="text-sm font-bold">星享等级：银星级</span>
+</div>
+<span class="text-[10px] text-gray-400">再积2星升至金星</span>
+</div>
+<div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden mb-6">
+<div class="bg-sb-gold w-3/4 h-full"></div>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center cursor-pointer" onclick="toggleCouponList()">
+<span class="text-sm">可用优惠券</span>
+<div class="flex items-center gap-1">
+<span class="text-xs sb-green">2张可用</span>
+<iconify-icon class="text-gray-400" icon="mdi:chevron-right"></iconify-icon>
+</div>
+</div>
+<div class="hidden bg-gray-50 p-3 rounded-lg space-y-3" id="coupon-list">
+<div class="flex justify-between items-center text-xs">
+<label class="flex items-center gap-2">
+<input class="accent-sb-green" type="checkbox"/>
+                                满30减5元新客礼
+                            </label>
+<span class="text-gray-400">有效期至 2026-07-01</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<label class="flex items-center gap-2">
+<input class="accent-sb-green" type="checkbox"/>
+                                指定饮品8折券
+                            </label>
+<span class="text-gray-400">有效期至 2026-06-30</span>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-sm">星礼卡支付</span>
+<div class="flex items-center gap-2">
+<span class="text-xs text-gray-400">余额 ¥86.50</span>
+<div class="w-10 h-5 bg-sb-green rounded-full relative cursor-pointer" onclick="toggleStarCard(this)">
+<div class="absolute right-1 top-1 w-3 h-3 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm space-y-4">
+<div class="flex justify-between items-center">
+<span class="text-sm">口味/备注</span>
+<input class="text-xs text-right outline-none bg-transparent" placeholder="少冰、去奶油等" type="text"/>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-sm">需要发票</span>
+<div class="w-10 h-5 bg-gray-200 rounded-full relative cursor-pointer" onclick="toggleSwitch(this)">
+<div class="absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-all"></div>
+</div>
+</div>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm space-y-3">
+<div class="flex justify-between text-xs">
+<span class="text-gray-500">商品费用</span>
+<span>¥ 38.00</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-gray-500">打包费</span>
+<span>¥ 1.00</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-gray-500">优惠券抵扣</span>
+<span class="text-red-500">- ¥ 0.00</span>
+</div>
+<div class="flex justify-between font-bold pt-3 border-t">
+<span>实付总计</span>
+<span class="sb-green text-lg">¥ 39.00</span>
+</div>
+</div>
+</div>
+<div class="fixed bottom-0 left-0 w-full p-6 bg-white border-t flex items-center justify-between z-50">
+<div class="flex items-center gap-2">
+<iconify-icon class="text-[#07C160] text-2xl" icon="mdi:wechat"></iconify-icon>
+<span class="text-xs font-bold">微信支付</span>
+</div>
+<button class="bg-sb-green text-white px-12 py-3 rounded-full font-bold shadow-lg active:scale-95" onclick="submitOrder()">提交订单</button>
+</div>
+</div>
+<!-- ====== 9. 订单跟踪页 (自取) ====== -->
+<div class="page no-tabbar bg-[#F7F7F7]" id="page-tracking-pickup">
+<div class="bg-sb-green p-8 text-white text-center rounded-b-[40px]">
+<p class="text-sm opacity-80 mb-2">您的取餐码</p>
+<h1 class="text-6xl font-bold mb-4">B23</h1>
+<p class="text-sm bg-white/20 inline-block px-4 py-1 rounded-full">取餐口令："一杯春日的好心情"</p>
+</div>
+<div class="p-6 space-y-6 -mt-4">
+<div class="bg-white p-6 rounded-2xl shadow-sm">
+<div class="relative flex justify-between mb-10">
+<div class="step-line"></div>
+<div class="step-line-active w-1/2"></div>
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-8 h-8 bg-sb-green text-white rounded-full flex items-center justify-center">
+<iconify-icon icon="mdi:check"></iconify-icon>
+</div>
+<span class="text-[10px] font-bold sb-green">已下单</span>
+</div>
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center animate-pulse">
+<iconify-icon icon="mdi:coffee-maker"></iconify-icon>
+</div>
+<span class="text-[10px] font-bold text-orange-500">制作中</span>
+</div>
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-8 h-8 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center">
+<iconify-icon icon="mdi:hand-okay"></iconify-icon>
+</div>
+<span class="text-[10px] text-gray-400">可取餐</span>
+</div>
+</div>
+<div class="text-center pt-4 border-t">
+<p class="text-xs text-gray-400 mb-1">预计取餐时间</p>
+<p class="text-lg font-bold">14:25 <span class="text-xs text-gray-400">(约8分钟后)</span></p>
+</div>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="font-bold text-sm">北京师大二附中店</p>
+<p class="text-[10px] text-gray-400 mt-1">北京市西城区新街口外大街12号</p>
+</div>
+<iconify-icon class="text-2xl sb-green" icon="mdi:phone-outline"></iconify-icon>
+</div>
+<div class="flex gap-3 pt-4 border-t">
+<img alt="Product" class="w-12 h-12 rounded-lg object-cover" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/cab70efef28349f09031b484ea8bc575.jpg"/>
+<div class="flex-1">
+<p class="text-xs font-bold">樱花拿铁 x 1</p>
+<p class="text-[10px] text-gray-400">大杯(Grande) / 热 / 标准糖</p>
+</div>
+</div>
+</div>
+<button class="w-full bg-white border border-sb-green text-sb-green py-3 rounded-full font-bold text-sm" onclick="switchPage('page-home')">返回首页</button>
+</div>
+</div>
+<!-- ====== 10. 专星送配送跟踪页 ====== -->
+<div class="page no-tabbar bg-[#F7F7F7]" id="page-tracking-delivery">
+<div class="bg-white px-6 py-4 flex items-center gap-3 border-b">
+<iconify-icon class="text-2xl cursor-pointer" icon="mdi:arrow-left" onclick="switchPage('page-home')"></iconify-icon>
+<h2 class="font-bold">配送追踪</h2>
+</div>
+<div class="p-4 space-y-4">
+<div class="bg-white p-6 rounded-2xl shadow-sm">
+<h3 class="font-bold text-lg mb-6">商家正在制作中...</h3>
+<div class="space-y-8 relative">
+<div class="absolute left-3 top-2 bottom-2 w-0.5 bg-gray-100"></div>
+<div class="absolute left-3 top-2 h-1/3 w-0.5 bg-sb-green"></div>
+<div class="flex items-start gap-6 relative z-10">
+<div class="w-6 h-6 bg-sb-green text-white rounded-full flex items-center justify-center text-xs">
+<iconify-icon icon="mdi:check"></iconify-icon>
+</div>
+<div>
+<p class="text-sm font-bold sb-green">商家已接单</p>
+<p class="text-[10px] text-gray-400 mt-1">2026-06-05 14:05:22</p>
+</div>
+</div>
+<div class="flex items-start gap-6 relative z-10">
+<div class="w-6 h-6 bg-sb-green text-white rounded-full flex items-center justify-center text-xs">
+<iconify-icon icon="mdi:coffee-maker"></iconify-icon>
+</div>
+<div>
+<p class="text-sm font-bold sb-green">正在制作</p>
+<p class="text-[10px] text-gray-400 mt-1">预计 14:20 制作完成</p>
+</div>
+</div>
+<div class="flex items-start gap-6 relative z-10">
+<div class="w-6 h-6 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center text-xs">
+<iconify-icon icon="mdi:moped"></iconify-icon>
+</div>
+<div>
+<p class="text-sm font-bold text-gray-400">配送中</p>
+<p class="text-[10px] text-gray-400 mt-1">骑手正在赶往门店</p>
+</div>
+</div>
+<div class="flex items-start gap-6 relative z-10">
+<div class="w-6 h-6 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center text-xs">
+<iconify-icon icon="mdi:home-check"></iconify-icon>
+</div>
+<div>
+<p class="text-sm font-bold text-gray-400">已送达</p>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-gray-100 rounded-full overflow-hidden">
+<img alt="Rider" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/99265dba15d54da3a6351b2907e4eb7a.jpg"/>
+</div>
+<div>
+<p class="text-sm font-bold">顺丰同城 · 王师傅</p>
+<p class="text-[10px] text-gray-400">配送员已接单</p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="w-8 h-8 rounded-full border flex items-center justify-center text-gray-600 active:bg-gray-50">
+<iconify-icon icon="mdi:message-text-outline"></iconify-icon>
+</button>
+<button class="w-8 h-8 rounded-full border flex items-center justify-center text-gray-600 active:bg-gray-50">
+<iconify-icon icon="mdi:phone-outline"></iconify-icon>
+</button>
+</div>
+</div>
+<div class="pt-4 border-t">
+<p class="text-xs text-gray-500 mb-1">配送地址</p>
+<p class="text-sm font-bold">北京师范大学(海淀校园)南一门外卖柜</p>
+</div>
+</div>
+</div>
+</div>
+<!-- ====== 11. 我的页面 ====== -->
+<div class="page bg-[#F7F7F7]" id="page-user-center">
+<div class="bg-white px-6 pt-12 pb-8 rounded-b-[40px] shadow-sm">
+<div class="flex items-center gap-4 mb-8">
+<div class="w-16 h-16 rounded-full border-4 border-white shadow-md overflow-hidden">
+<img alt="Avatar" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/a8138a00c54b4466993edb60bfa9518a.jpg"/>
+</div>
+<div>
+<h2 class="text-xl font-bold">CoffeeLover_01</h2>
+<div class="flex items-center gap-1 mt-1">
+<span class="text-[10px] bg-sb-gold text-white px-2 py-0.5 rounded-full">银星级会员</span>
+</div>
+</div>
+</div>
+<div class="bg-[#2D2D2D] rounded-2xl p-4 text-white">
+<div class="flex justify-between items-center mb-4">
+<div class="flex items-center gap-2">
+<iconify-icon class="sb-gold text-xl" icon="mdi:star"></iconify-icon>
+<span class="text-sm font-bold">积星进度</span>
+</div>
+<span class="text-xs">12.5 / 15</span>
+</div>
+<div class="w-full bg-white/20 h-2 rounded-full overflow-hidden mb-2">
+<div class="bg-sb-gold w-[83%] h-full"></div>
+</div>
+<p class="text-[10px] text-gray-400">再积 2.5 星即可兑换一张好礼券</p>
+</div>
+</div>
+<div class="px-4 -mt-4 mb-6">
+<div class="bg-white rounded-2xl p-4 shadow-sm grid grid-cols-4 gap-4 text-center">
+<div class="flex flex-col items-center gap-1 cursor-pointer" onclick="switchPage('page-order-history')">
+<iconify-icon class="text-2xl text-gray-600" icon="mdi:clock-outline"></iconify-icon>
+<span class="text-[10px]">待取餐</span>
+</div>
+<div class="flex flex-col items-center gap-1 cursor-pointer" onclick="switchPage('page-tracking-delivery')">
+<iconify-icon class="text-2xl text-gray-600" icon="mdi:truck-delivery-outline"></iconify-icon>
+<span class="text-[10px]">配送中</span>
+</div>
+<div class="flex flex-col items-center gap-1 cursor-pointer" onclick="switchPage('page-order-history')">
+<iconify-icon class="text-2xl text-gray-600" icon="mdi:playlist-check"></iconify-icon>
+<span class="text-[10px]">已完成</span>
+</div>
+<div class="flex flex-col items-center gap-1 cursor-pointer" onclick="switchPage('page-order-history')">
+<iconify-icon class="text-2xl text-gray-600" icon="mdi:headphones"></iconify-icon>
+<span class="text-[10px]">售后</span>
+</div>
+</div>
+</div>
+<div class="px-4 space-y-3">
+<div class="bg-white rounded-2xl overflow-hidden shadow-sm">
+<div class="flex items-center justify-between p-4 border-b cursor-pointer" onclick="handleAddressAction()">
+<div class="flex items-center gap-3">
+<iconify-icon class="text-xl text-gray-400" icon="mdi:map-marker-outline"></iconify-icon>
+<span class="text-sm">收货地址簿管理</span>
+</div>
+<iconify-icon class="text-gray-300" icon="mdi:chevron-right"></iconify-icon>
+</div>
+<div class="flex items-center justify-between p-4 border-b cursor-pointer">
+<div class="flex items-center gap-3">
+<iconify-icon class="text-xl text-gray-400" icon="mdi:card-account-details-outline"></iconify-icon>
+<span class="text-sm">我的星礼卡</span>
+</div>
+<iconify-icon class="text-gray-300" icon="mdi:chevron-right"></iconify-icon>
+</div>
+<div class="flex items-center justify-between p-4 border-b cursor-pointer">
+<div class="flex items-center gap-3">
+<iconify-icon class="text-xl text-gray-400" icon="mdi:ticket-percent-outline"></iconify-icon>
+<span class="text-sm">我的优惠券</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="text-[10px] bg-red-500 text-white px-1.5 rounded-full">2</span>
+<iconify-icon class="text-gray-300" icon="mdi:chevron-right"></iconify-icon>
+</div>
+</div>
+<div class="flex items-center justify-between p-4 cursor-pointer">
+<div class="flex items-center gap-3">
+<iconify-icon class="text-xl text-gray-400" icon="mdi:cog-outline"></iconify-icon>
+<span class="text-sm">设置</span>
+</div>
+<iconify-icon class="text-gray-300" icon="mdi:chevron-right"></iconify-icon>
+</div>
+</div>
+</div>
+</div>
+<!-- ====== 12. 收货地址簿管理页 ====== -->
+<div class="page no-tabbar bg-[#F7F7F7]" id="page-address-list">
+<div class="bg-white px-6 py-4 flex items-center justify-between border-b sticky top-0 z-10">
+<div class="flex items-center gap-3">
+<iconify-icon class="text-2xl cursor-pointer" icon="mdi:arrow-left" onclick="switchPage('page-user-center')"></iconify-icon>
+<h2 class="font-bold">收货地址簿</h2>
+</div>
+<span class="text-sm sb-green font-bold cursor-pointer" onclick="handleNewAddress()">新建地址</span>
+</div>
+<div class="p-4 space-y-4">
+<div class="bg-white p-4 rounded-2xl shadow-sm">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<span class="font-bold text-sm">王小明</span>
+<span class="text-xs text-gray-400">138****8888</span>
+<span class="text-[10px] bg-green-50 text-sb-green px-1.5 rounded">家</span>
+<iconify-icon class="sb-gold text-xs" icon="mdi:star"></iconify-icon>
+</div>
+<div class="flex gap-4">
+<iconify-icon class="text-gray-400 cursor-pointer" icon="mdi:pencil-outline"></iconify-icon>
+<iconify-icon class="text-gray-400 cursor-pointer" icon="mdi:delete-outline"></iconify-icon>
+</div>
+</div>
+<p class="text-xs text-gray-500">北京市海淀区学院路37号北京航空航天大学 1号楼 302室</p>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<span class="font-bold text-sm">王小明</span>
+<span class="text-xs text-gray-400">138****8888</span>
+<span class="text-[10px] bg-blue-50 text-blue-500 px-1.5 rounded">公司</span>
+</div>
+<div class="flex gap-4">
+<iconify-icon class="text-gray-400 cursor-pointer" icon="mdi:pencil-outline"></iconify-icon>
+<iconify-icon class="text-gray-400 cursor-pointer" icon="mdi:delete-outline"></iconify-icon>
+</div>
+</div>
+<p class="text-xs text-gray-500">北京市海淀区中关村大街27号 中关村大厦 12层</p>
+</div>
+</div>
+<div class="hidden fixed inset-0 bg-black/50 z-[200] flex items-end" id="address-form">
+<div class="bg-white w-full rounded-t-[40px] p-8 space-y-6">
+<div class="flex justify-between items-center mb-2">
+<h3 class="text-lg font-bold">新增收货地址</h3>
+<iconify-icon class="text-2xl text-gray-400 cursor-pointer" icon="mdi:close" onclick="toggleAddressForm()"></iconify-icon>
+</div>
+<div class="space-y-4">
+<div class="border-b py-2">
+<input class="w-full text-sm outline-none" placeholder="收货人姓名" type="text"/>
+</div>
+<div class="border-b py-2">
+<input class="w-full text-sm outline-none" placeholder="手机号" type="text"/>
+</div>
+<div class="border-b py-2 flex justify-between items-center">
+<input class="w-full text-sm outline-none" placeholder="所在地区" type="text"/>
+<iconify-icon class="sb-green" icon="mdi:map-marker"></iconify-icon>
+</div>
+<div class="border-b py-2">
+<input class="w-full text-sm outline-none" placeholder="详细地址（如门牌号、楼层等）" type="text"/>
+</div>
+<div>
+<p class="text-[10px] text-gray-400 mb-3">标签</p>
+<div class="flex gap-3">
+<span class="px-4 py-1 border rounded-full text-xs active:bg-sb-green active:text-white transition cursor-pointer">家</span>
+<span class="px-4 py-1 border rounded-full text-xs active:bg-sb-green active:text-white transition cursor-pointer">公司</span>
+<span class="px-4 py-1 border rounded-full text-xs active:bg-sb-green active:text-white transition cursor-pointer">其他</span>
+</div>
+</div>
+</div>
+<button class="w-full bg-sb-green text-white py-4 rounded-full font-bold mt-6" onclick="toggleAddressForm()">保存并使用</button>
+</div>
+</div>
+</div>
+<!-- ====== 13. 历史订单与售后页 ====== -->
+<div class="page no-tabbar bg-[#F7F7F7]" id="page-order-history">
+<div class="bg-white px-6 py-4 flex items-center gap-3 border-b sticky top-0 z-10">
+<iconify-icon class="text-2xl cursor-pointer" icon="mdi:arrow-left" onclick="switchPage('page-user-center')"></iconify-icon>
+<h2 class="font-bold">全部订单</h2>
+</div>
+<div class="bg-white flex justify-around py-2 text-xs border-b sticky top-[57px] z-10">
+<span class="sb-green font-bold border-b-2 border-sb-green pb-1 px-2">全部</span>
+<span class="text-gray-400 pb-1 px-2">待取餐</span>
+<span class="text-gray-400 pb-1 px-2">已完成</span>
+<span class="text-gray-400 pb-1 px-2">售后</span>
+</div>
+<div class="p-4 space-y-4">
+<div class="bg-white p-4 rounded-2xl shadow-sm">
+<div class="flex justify-between items-center mb-4 pb-4 border-b">
+<div>
+<p class="font-bold text-sm">北京师大二附中店</p>
+<p class="text-[10px] text-gray-400">2026-06-05 14:05</p>
+</div>
+<span class="text-[10px] text-orange-500 font-bold">制作中</span>
+</div>
+<div class="flex justify-between items-center mb-4">
+<div class="flex gap-2">
+<img alt="Product" class="w-12 h-12 rounded-lg object-cover" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/cab70efef28349f09031b484ea8bc575.jpg"/>
+<div>
+<p class="text-xs font-bold">樱花拿铁 等 1件商品</p>
+<p class="text-[10px] text-gray-400">大杯 / 热 / 标准糖</p>
+</div>
+</div>
+<span class="font-bold text-sm">¥ 39.00</span>
+</div>
+<div class="flex justify-end gap-3 pt-4 border-t">
+<button class="px-4 py-1.5 border rounded-full text-xs text-gray-500">查看详情</button>
+<button class="px-4 py-1.5 border border-sb-green text-sb-green rounded-full text-xs font-bold" onclick="switchPage('page-tracking-pickup')">查看取餐码</button>
+</div>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-sm">
+<div class="flex justify-between items-center mb-4 pb-4 border-b">
+<div>
+<p class="font-bold text-sm">学院路臻选店</p>
+<p class="text-[10px] text-gray-400">2026-06-01 09:12</p>
+</div>
+<span class="text-[10px] text-gray-400 font-bold">已完成</span>
+</div>
+<div class="flex justify-between items-center mb-4">
+<div class="flex gap-2">
+<img alt="Product" class="w-12 h-12 rounded-lg object-cover" src="https://modao.cc/agent-py/media/generated_images/2026-06-05/cab70efef28349f09031b484ea8bc575.jpg"/>
+<div>
+<p class="text-xs font-bold">经典拿铁 等 2件商品</p>
+<p class="text-[10px] text-gray-400">中杯 / 冰 / 无糖</p>
+</div>
+</div>
+<span class="font-bold text-sm">¥ 48.00</span>
+</div>
+<div class="flex justify-end gap-3 pt-4 border-t">
+<button class="px-4 py-1.5 border rounded-full text-xs text-gray-500">申请售后</button>
+<button class="px-4 py-1.5 border border-sb-green text-sb-green rounded-full text-xs font-bold">再来一单</button>
+</div>
+</div>
+</div>
+<div class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white shadow-xl border rounded-full px-6 py-3 flex items-center gap-2 active:scale-95 transition cursor-pointer">
+<iconify-icon class="sb-green text-xl" icon="mdi:headphones"></iconify-icon>
+<span class="text-xs font-bold">联系在线客服</span>
+</div>
+</div>
+<!-- ====== 线上点单隐私权益弹窗 ====== -->
+<div class="modal-overlay" id="order-privacy-modal">
+<div class="modal-card">
+<div class="flex justify-end mb-2">
+<iconify-icon class="text-2xl text-gray-400 cursor-pointer" icon="mdi:close" onclick="hideOrderPrivacyModal()"></iconify-icon>
+</div>
+<h2 class="text-xl font-bold mb-6 text-center">线上点单服务隐私权益</h2>
+<div class="space-y-6 mb-8">
+<div class="flex gap-3">
+<div class="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center shrink-0">
+<iconify-icon class="text-xl sb-green" icon="mdi:coffee"></iconify-icon>
+</div>
+<div>
+<h3 class="font-bold text-sm mb-1">啡快线上订餐服务</h3>
+<p class="text-xs text-gray-500 leading-relaxed">我们需<span class="highlight-term">收集您的订单信息（商品、定制选项、数量）</span>、制作门店、取餐人信息及取餐码，以完成您的到店自取服务。</p>
+</div>
+</div>
+<div class="flex gap-3">
+<div class="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center shrink-0">
+<iconify-icon class="text-xl sb-green" icon="mdi:truck-delivery"></iconify-icon>
+</div>
+<div>
+<h3 class="font-bold text-sm mb-1">专星送外卖配送服务</h3>
+<p class="text-xs text-gray-500 leading-relaxed">我们需<span class="highlight-term">收集您的收货地址、联系方式</span>、订单备注及配送偏好。您的地址信息仅用于本次配送。</p>
+</div>
+</div>
+<div class="flex gap-3">
+<div class="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center shrink-0">
+<iconify-icon class="text-xl sb-green" icon="mdi:shield-check"></iconify-icon>
+</div>
+<div>
+<h3 class="font-bold text-sm mb-1">安全保障与优化</h3>
+<p class="text-xs text-gray-500 leading-relaxed">我们会收集您的设备信息、网络信息及操作日志，用于风险控制和故障排查，保障交易安全。</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 mb-6 cursor-pointer" onclick="toggleOrderPrivacyCheck()">
+<div class="w-5 h-5 border-2 border-gray-300 rounded flex items-center justify-center shrink-0 mt-0.5 transition-all duration-150" id="order-privacy-checkbox">
+<iconify-icon class="text-white text-sm hidden" icon="mdi:check" id="order-privacy-check-icon"></iconify-icon>
+</div>
+<span class="text-sm text-gray-700" id="order-privacy-check-label">我已阅读并同意线上点单服务隐私权益</span>
+</div>
+<button class="w-full bg-[#00754A] text-white py-4 rounded-full font-bold mb-3 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg active:scale-95 transition" disabled="" id="btn-order-privacy-confirm" onclick="confirmOrderPrivacy()">同意并开始点单</button>
+<button class="w-full text-gray-500 py-3 rounded-full font-bold active:scale-95 transition" onclick="hideOrderPrivacyModal()">取消</button>
+</div>
+</div>
+<!-- ====== 位置授权弹窗 ====== -->
+<div class="modal-overlay" id="location-permission-modal">
+<div class="modal-card">
+<!-- 当前定位信息 -->
+<div class="mb-5">
+<div class="flex items-center gap-1 mb-1">
+<iconify-icon class="text-sb-green text-lg" icon="mdi:map-marker"></iconify-icon>
+<span class="font-bold text-sm">当前定位</span>
+</div>
+<p class="text-xs text-gray-600 mb-1">公司 - 北京师范大学(海淀校园)南一门外卖柜</p>
+<span class="text-xs text-sb-green font-bold">重新定位</span>
+</div>
+<div class="mb-4">
+<p class="text-xs text-gray-400">我的地址</p>
+</div>
+<!-- 授权提示 -->
+<p class="text-center text-sm font-bold mb-6 leading-relaxed">请授权您的精准位置信息，<br/>以自动匹配收货地址</p>
+<!-- 两个选项 -->
+<button class="w-full border border-green-300 text-sb-green py-3.5 rounded-xl font-bold flex items-center justify-between px-4 mb-3 active:bg-green-50 transition" onclick="agreeLocation()">
+<span>我同意授权精准位置信息</span>
+<iconify-icon icon="mdi:chevron-right"></iconify-icon>
+</button>
+<button class="w-full border border-green-300 text-sb-green py-3.5 rounded-xl font-bold flex items-center justify-between px-4 mb-5 active:bg-green-50 transition" onclick="manualLocation()">
+<span>我不同意，我想手动输入收货地址</span>
+<iconify-icon icon="mdi:chevron-right"></iconify-icon>
+</button>
+<!-- 新建地址 -->
+<button class="w-full bg-sb-green text-white py-4 rounded-full font-bold shadow-lg active:scale-95 transition" onclick="manualLocation()">新建地址</button>
+</div>
+</div>
+<!-- ====== Tab Bar ====== -->
+<div class="tab-bar" id="main-tab-bar">
+<div class="tab-item active" onclick="switchPage('page-home')">
+<iconify-icon class="text-2xl" icon="mdi:home"></iconify-icon>
+<span>首页</span>
+</div>
+<div class="tab-item" onclick="handleOrderTabClick()">
+<iconify-icon class="text-2xl" icon="mdi:coffee"></iconify-icon>
+<span>点餐</span>
+</div>
+<div class="tab-item" onclick="switchPage('page-login')">
+<iconify-icon class="text-2xl" icon="mdi:star"></iconify-icon>
+<span>会员</span>
+</div>
+<div class="tab-item" onclick="switchPage('page-user-center')">
+<iconify-icon class="text-2xl" icon="mdi:account"></iconify-icon>
+<span>我的</span>
+</div>
+</div>
+</div>
+<script>
+    // === 渐进式权限状态 ===
+    let privacyConsented = false;
+    let orderPrivacyConsented = false;
+    let locationConsented = false;
+    let guestMode = false;
+    let loginPrivacyConsented = false;
+
+    // 待执行回调
+    let pendingOrderCallback = null;
+    let pendingLocationCallback = null;
+
+    // === 页面切换（无硬性门禁） ===
+    function switchPageInternal(pageId) {
+        document.querySelectorAll('.page').forEach(page => {
+            page.classList.remove('active');
+        });
+        const targetPage = document.getElementById(pageId);
+        if (targetPage) {
+            targetPage.classList.add('active');
+            targetPage.scrollTop = 0;
+        }
+        const mainPages = ['page-home', 'page-menu', 'page-user-center'];
+        const tabBar = document.getElementById('main-tab-bar');
+        if (mainPages.includes(pageId)) {
+            tabBar.style.display = 'flex';
+            document.querySelectorAll('.tab-item').forEach(item => {
+                item.classList.remove('active');
+                const text = item.querySelector('span').innerText;
+                if (pageId === 'page-home' && text === '首页') item.classList.add('active');
+                if (pageId === 'page-menu' && text === '点餐') item.classList.add('active');
+                if (pageId === 'page-user-center' && (text === '会员' || text === '我的')) item.classList.add('active');
+            });
+        } else {
+            tabBar.style.display = 'none';
+        }
+    }
+
+    function switchPage(pageId) {
+        // 点击"点餐"时检查点单隐私权限
+        if (pageId === 'page-menu') {
+            if (!orderPrivacyConsented) {
+                showOrderPrivacyModal(function() {
+                    switchPageInternal('page-menu');
+                });
+                return;
+            }
+        }
+        switchPageInternal(pageId);
+    }
+
+    // === 底部 Tab 点击处理 ===
+    function handleOrderTabClick() {
+        if (!privacyConsented && !guestMode) {
+            switchPageInternal('page-privacy-policy');
+            return;
+        }
+        switchPage('page-menu');
+    }
+
+    // === 首页卡片点击 ===
+    function handleOrderAction() {
+        if (!orderPrivacyConsented) {
+            showOrderPrivacyModal(function() {
+                switchPageInternal('page-menu');
+            });
+            return;
+        }
+        switchPageInternal('page-menu');
+    }
+
+    function handleDeliveryAction() {
+        if (!orderPrivacyConsented) {
+            showOrderPrivacyModal(function() {
+                // 同意点单隐私后再检查位置授权
+                checkAndHandleDelivery();
+            });
+            return;
+        }
+        checkAndHandleDelivery();
+    }
+
+    function checkAndHandleDelivery() {
+        if (!locationConsented) {
+            showLocationPermissionModal(function() {
+                switchPageInternal('page-menu');
+            });
+            return;
+        }
+        switchPageInternal('page-menu');
+    }
+
+    // 结算页专星送按钮
+    function handleCheckoutDelivery() {
+        if (!locationConsented) {
+            showLocationPermissionModal(function() {
+                // 继续留在结算页
+            });
+            return;
+        }
+    }
+
+    // 地址管理入口
+    function handleAddressAction() {
+        if (!locationConsented) {
+            showLocationPermissionModal(function() {
+                switchPageInternal('page-address-list');
+            });
+            return;
+        }
+        switchPageInternal('page-address-list');
+    }
+
+    function handleNewAddress() {
+        if (!locationConsented) {
+            showLocationPermissionModal(function() {
+                toggleAddressForm();
+            });
+            return;
+        }
+        toggleAddressForm();
+    }
+
+    // === 隐私政策提示页（首次启动引导） ===
+    function togglePrivacyCheck() {
+        const checkbox = document.getElementById('privacy-checkbox');
+        const icon = document.getElementById('privacy-check-icon');
+        const btn = document.getElementById('btn-agree-continue');
+        const isChecked = !checkbox.classList.contains('bg-[#00754A]');
+        if (isChecked) {
+            checkbox.classList.add('bg-[#00754A]', 'border-[#00754A]');
+            checkbox.classList.remove('border-gray-300');
+            icon.classList.remove('hidden');
+            btn.disabled = false;
+        } else {
+            checkbox.classList.remove('bg-[#00754A]', 'border-[#00754A]');
+            checkbox.classList.add('border-gray-300');
+            icon.classList.add('hidden');
+            btn.disabled = true;
+        }
+    }
+
+    function consentPrivacy() {
+        const checkbox = document.getElementById('privacy-checkbox');
+        if (!checkbox.classList.contains('bg-[#00754A]')) return;
+        privacyConsented = true;
+        guestMode = false;
+        switchPageInternal('page-home');
+    }
+
+    function enterGuestMode() {
+        privacyConsented = true;
+        guestMode = true;
+        switchPageInternal('page-home');
+    }
+
+    function skipPrivacy() {
+        // 关闭隐私页，直接进入首页浏览
+        switchPageInternal('page-home');
+    }
+
+    // === 线上点单隐私权益弹窗 ===
+    function showOrderPrivacyModal(callback) {
+        pendingOrderCallback = callback || null;
+        document.getElementById('order-privacy-modal').classList.add('active');
+        document.body.classList.add('modal-open');
+        // 重置复选框状态
+        const checkbox = document.getElementById('order-privacy-checkbox');
+        const icon = document.getElementById('order-privacy-check-icon');
+        const btn = document.getElementById('btn-order-privacy-confirm');
+        checkbox.classList.remove('bg-[#00754A]', 'border-[#00754A]');
+        checkbox.classList.add('border-gray-300');
+        icon.classList.add('hidden');
+        btn.disabled = true;
+    }
+
+    function hideOrderPrivacyModal() {
+        document.getElementById('order-privacy-modal').classList.remove('active');
+        document.body.classList.remove('modal-open');
+        pendingOrderCallback = null;
+    }
+
+    function toggleOrderPrivacyCheck() {
+        const checkbox = document.getElementById('order-privacy-checkbox');
+        const icon = document.getElementById('order-privacy-check-icon');
+        const btn = document.getElementById('btn-order-privacy-confirm');
+        const isChecked = !checkbox.classList.contains('bg-[#00754A]');
+        if (isChecked) {
+            checkbox.classList.add('bg-[#00754A]', 'border-[#00754A]');
+            checkbox.classList.remove('border-gray-300');
+            icon.classList.remove('hidden');
+            btn.disabled = false;
+        } else {
+            checkbox.classList.remove('bg-[#00754A]', 'border-[#00754A]');
+            checkbox.classList.add('border-gray-300');
+            icon.classList.add('hidden');
+            btn.disabled = true;
+        }
+    }
+
+    function confirmOrderPrivacy() {
+        const checkbox = document.getElementById('order-privacy-checkbox');
+        if (!checkbox.classList.contains('bg-[#00754A]')) return;
+        orderPrivacyConsented = true;
+        document.getElementById('order-privacy-modal').classList.remove('active');
+        document.body.classList.remove('modal-open');
+        if (pendingOrderCallback) {
+            const cb = pendingOrderCallback;
+            pendingOrderCallback = null;
+            cb();
+        }
+    }
+
+    // === 位置授权弹窗 ===
+    function showLocationPermissionModal(callback) {
+        pendingLocationCallback = callback || null;
+        document.getElementById('location-permission-modal').classList.add('active');
+        document.body.classList.add('modal-open');
+    }
+
+    function hideLocationPermissionModal() {
+        document.getElementById('location-permission-modal').classList.remove('active');
+        document.body.classList.remove('modal-open');
+        pendingLocationCallback = null;
+    }
+
+    function agreeLocation() {
+        locationConsented = true;
+        document.getElementById('location-permission-modal').classList.remove('active');
+        document.body.classList.remove('modal-open');
+        if (pendingLocationCallback) {
+            const cb = pendingLocationCallback;
+            pendingLocationCallback = null;
+            cb();
+        }
+    }
+
+    function manualLocation() {
+        locationConsented = true;
+        document.getElementById('location-permission-modal').classList.remove('active');
+        document.body.classList.remove('modal-open');
+        if (pendingLocationCallback) {
+            const cb = pendingLocationCallback;
+            pendingLocationCallback = null;
+            cb();
+        }
+    }
+
+    // === 登录 ===
+    function loginWithWechat() {
+        const agreeCheckbox = document.getElementById('login-agree');
+        if (!agreeCheckbox.checked) {
+            alert('请先阅读并同意隐私权益说明');
+            return;
+        }
+        loginPrivacyConsented = true;
+        switchPageInternal('page-user-center');
+    }
+
+    function loginWithPhone() {
+        const agreeCheckbox = document.getElementById('login-agree');
+        if (!agreeCheckbox.checked) {
+            alert('请先阅读并同意隐私权益说明');
+            return;
+        }
+        loginPrivacyConsented = true;
+        switchPageInternal('page-user-center');
+    }
+
+    // === 产品详情 ===
+    function openProductDetail(name, price, desc) {
+        document.getElementById('detail-name').innerText = name;
+        document.getElementById('detail-price').innerText = '¥ ' + price.toFixed(2);
+        document.getElementById('detail-desc').innerText = desc;
+        switchPageInternal('page-product-detail');
+    }
+
+    function selectOption(el, group) {
+        const siblings = el.parentElement.children;
+        for (let sib of siblings) {
+            sib.classList.remove('border-sb-green', 'bg-green-50', 'text-sb-green', 'border-2');
+            sib.classList.add('border');
+        }
+        el.classList.add('border-sb-green', 'bg-green-50', 'text-sb-green', 'border-2');
+        el.classList.remove('border');
+    }
+
+    // === 购物车 ===
+    let cartCount = 0;
+    function addToCart() {
+        cartCount++;
+        document.getElementById('cart-count').innerText = cartCount;
+        document.getElementById('mini-cart').classList.remove('hidden');
+        switchPageInternal('page-menu');
+    }
+
+    function clearCart() {
+        cartCount = 0;
+        document.getElementById('mini-cart').classList.add('hidden');
+        switchPageInternal('page-menu');
+    }
+
+    // === 结算 ===
+    function toggleCouponList() {
+        document.getElementById('coupon-list').classList.toggle('hidden');
+    }
+
+    function toggleStarCard(el) {
+        el.classList.toggle('bg-sb-green');
+        el.classList.toggle('bg-gray-200');
+    }
+
+    function toggleSwitch(el) {
+        el.classList.toggle('bg-sb-green');
+        el.classList.toggle('bg-gray-200');
+        const dot = el.querySelector('div');
+        if (dot) {
+            dot.classList.toggle('right-1');
+            dot.classList.toggle('left-1');
+        }
+    }
+
+    function submitOrder() {
+        const btn = event.target;
+        btn.innerText = "支付中...";
+        btn.disabled = true;
+        setTimeout(() => {
+            switchPageInternal('page-tracking-pickup');
+            btn.innerText = "提交订单";
+            btn.disabled = false;
+        }, 1500);
+    }
+
+    function toggleAddressForm() {
+        document.getElementById('address-form').classList.toggle('hidden');
+    }
+
+    // === 初始化 ===
+    window.onload = () => {
+        // 首次启动显示隐私政策提示页（推荐引导，非硬性门禁）
+        switchPageInternal('page-privacy-policy');
+    };
+</script>
+</body>
+</html>
